@@ -7,6 +7,9 @@
 # Version: V1.0
 # To change this template use File | Settings | File Templates.
 # Description:
+#
+# VideoToChar.py 主要是实现短视频转换为对应的字符串视频，
+# VideoToChar1.py 其中包含音频和视频。
 
 if __name__ == '__main__':
     pass

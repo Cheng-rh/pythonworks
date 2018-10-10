@@ -14,24 +14,30 @@ import time
 import threading
 import cv2
 import pyprind
+import argparse
 
 
 class CharFrame:
     # 主要是用来映射图片对应的字符串
     ascii_char = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+
     # 像素映射到字符（每个灰度值对应其中的一个字符串）
     def pixelToChar(self, luminance):
         return self.ascii_char[int(luminance / 256 * len(self.ascii_char))]
+
     # 将普通帧转为 ASCII 字符帧
     def convert(self, img, limitSize=-1, fill=False, wrap=False):
         if limitSize != -1 and (img.shape[0] > limitSize[1] or img.shape[1] > limitSize[0]):
+            # 重新设置图片的大小，其中interpolation=cv2.INTER_AREA 表示的是图片的插值方法
             img = cv2.resize(img, limitSize, interpolation=cv2.INTER_AREA)
-        ascii_frame = ''
+        # 如果宽度不够的话就用“ ”来填充，如果高度不够的话，就用“\n”来填充。
         blank = ''
         if fill:
             blank += ' ' * (limitSize[0] - img.shape[1])
         if wrap:
             blank += '\n'
+        # 获取图片的每个灰度值并将其转换为字符串，ascii_frame 表示初始化每行的字符串
+        ascii_frame = ''
         for i in range(img.shape[0]):
             for j in range(img.shape[1]):
                 ascii_frame += self.pixelToChar(img[i, j])
@@ -70,22 +76,40 @@ class I2Char(CharFrame):
 
 class V2Char(CharFrame):
     charVideo = []
+    # 表示的是时间间隔
     timeInterval = 0.033
 
     def __init__(self, path):
+        '''
+        构造器初始化
+        :param path: 待转换字符串的视频地址
+        '''
+        # 根据文件的后缀，打开对应的文件
         if path.endswith('txt'):
             self.load(path)
         else:
             self.genCharVideo(path)
 
     def genCharVideo(self, filepath):
+        '''
+        用来获取对应的字符video
+        :param filepath: 待转换字符串的视频地址
+        :return:
+        '''
         self.charVideo = []
         cap = cv2.VideoCapture(filepath)
+        # cap.get(5) 获取的是视频原本的fps, 通过fps获取视频的间隔，其中round(1 / cap.get(5), 3)的方法表示的是四舍五入的值：round(80.23456, 2) :  80.23
         self.timeInterval = round(1 / cap.get(5), 3)
+        # cap.get(7) 表示获取视频的总帧数
         nf = int(cap.get(7))
         print('Generate char video, please wait...')
+        # 其中 pyprind.prog_bar 是python中的非常实用的进度条小工具
         for i in pyprind.prog_bar(range(nf)):
+            # cv2.cvtColor是opencv的颜色空间转换
+            # cap.read() 返回值的第一个参数为true 或者false，表示的是有没有读取到图片。第二个参数framme，表示截取到一帧的图片
+            # cv2.COLOR_BGR2GRAY是转换类型 BGR和灰度图的转换使用
             rawFrame = cv2.cvtColor(cap.read()[1], cv2.COLOR_BGR2GRAY)
+            # os.get_terminal_size()表示获取终端的宽度，根据不同的终端自适应的打出一行。返回的是转换成字符串的每张照片(字符)
             frame = self.convert(rawFrame, os.get_terminal_size(), fill=True)
             self.charVideo.append(frame)
         cap.release()
@@ -177,17 +201,17 @@ class V2Char(CharFrame):
 
 
 if __name__ == '__main__':
-    import argparse
 
-    # 设置命令行参数
-    parser = argparse.ArgumentParser()
-    parser.add_argument('file',
-                        help='Video file or charvideo file')
-    parser.add_argument('-e', '--export', nargs='?', const='charvideo.txt',
-                        help='Export charvideo file')
-    # 获取参数
-    args = parser.parse_args()
-    v2char = V2Char(args.file)
-    if args.export:
-        v2char.export(args.export)
+    # # 其中argparse是一个命令解析器，设置命令行参数(python **.py ... -e ...)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('file', help='Video file or charvideo file')
+    # parser.add_argument('-e', '--export', nargs='?', const='charvideo.txt', help='Export charvideo file')
+    # # 获取参数
+    # args = parser.parse_args()
+
+    videoPath = r"C:\Users\sssd\Desktop\Apple.mp4"
+    savePath = r"G:\result.txt"
+    # 读取视频video并转换为char.
+    v2char = V2Char(videoPath)
+    v2char.export(savePath)
     v2char.play()
